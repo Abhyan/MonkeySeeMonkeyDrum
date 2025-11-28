@@ -8,12 +8,13 @@ from PySide6.QtWidgets import (
     QComboBox,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal, Slot
 from midi.midi_manager import MidiManager
 import time
 import mido
 
 class MainWindow(QMainWindow):
+    midi_hit = Signal(int, int)
     def __init__(self):
         super().__init__()
 
@@ -28,6 +29,10 @@ class MainWindow(QMainWindow):
         self.record_start_time: float | None = None
         # The recorded message is a list of messages
         self.recorded_messages: list[tuple[float, mido.Message]] = []
+        self.hit_count = 0
+
+        # Connect signal to slot for visual updates
+        self.midi_hit.connect(self._on_midi_hit_visual)
 
         # UI setup
         self._create_central_widget()
@@ -300,6 +305,7 @@ class MainWindow(QMainWindow):
         rel_time = timestamp - self.record_start_time
         self.recorded_messages.append((rel_time, message))
 
+        self.midi_hit.emit(message.note, message.velocity)
         #if len(self.recorded_messages) % 10 == 0:
         #    print(f"Recorded {len(self.recorded_messages)} messages so far...")
 
@@ -318,3 +324,12 @@ class MainWindow(QMainWindow):
             lines.append(f"... and {remaining} more message(s)")
 
         return "\n".join(lines)
+    
+    def _on_midi_hit_visual(self, note: int, velocity: int):
+        self.hit_count += 1
+        self.placeholder_label.setText(
+            f"Last hit:\n"
+            f"Note: {note}\n"
+            f"Velocity: {velocity}\n"
+            f"Total hits: {self.hit_count}"
+        )
