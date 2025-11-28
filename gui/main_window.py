@@ -230,12 +230,12 @@ class MainWindow(QMainWindow):
 
             self.is_recording = False
 
-            num = len(self.recorded_messages)
-            self.placeholder_label.setText(
-                f"Recording stopped.\nCaptured {num} MIDI messages."
-                if num > 0
-                else "Recording stopped.\n(No MIDI messages were captured.)"
-            )
+            summary = self._format_recording_summary()
+
+            print("\n=== Recording Summary ===")
+            print(summary)
+
+            self.placeholder_label.setText(summary)
 
     def _on_output_changed(self, name: str):
         # Ignore placeholder / no-devices entries
@@ -302,3 +302,19 @@ class MainWindow(QMainWindow):
 
         #if len(self.recorded_messages) % 10 == 0:
         #    print(f"Recorded {len(self.recorded_messages)} messages so far...")
+
+    def _format_recording_summary(self) -> str:
+        if not self.recorded_messages:
+            return "No MIDI messages were recorded"
+        
+        max_lines = 20
+        lines = []
+
+        for t, msg in self.recorded_messages[:max_lines]:
+            lines.append(f"{t:.3f}s  {msg}")
+
+        if len(self.recorded_messages) > max_lines:
+            remaining = len(self.recorded_messages) - max_lines
+            lines.append(f"... and {remaining} more message(s)")
+
+        return "\n".join(lines)
