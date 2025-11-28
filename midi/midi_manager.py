@@ -112,8 +112,8 @@ class MidiManager:
 
     def _handle_input_message(self, message: mido.Message):
         """This is called from a background thread by mido."""
-        ts = time.time();
-        print(f"MIDI IN [{self.current_input_name}] @ {ts:.3f}: {message}")
+        ts = time.monotonic();
+        # print(f"MIDI IN [{self.current_input_name}] @ {ts:.3f}: {message}")
 
         if self.input_callback is not None:
             try:

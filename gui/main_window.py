@@ -217,7 +217,7 @@ class MainWindow(QMainWindow):
             self.record_button.setText("Recording...")
 
             self.is_recording = True
-            self.record_start_time = time.time()
+            self.record_start_time = time.monotonic()
             self.recorded_messages.clear()
 
             self.placeholder_label.setText(
