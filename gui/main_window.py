@@ -289,6 +289,9 @@ class MainWindow(QMainWindow):
 
     def _on_midi_message(self, message: mido.Message, timestamp: float):
         # This is called from a background thread by mido via MidiManager.
+        if message.type != "note_on" or message.velocity <= 0:
+            return
+
         print(f"[GUI] Received MIDI @ {timestamp:.3f}: {message}")
 
         if not self.is_recording or self.record_start_time is None:
@@ -297,5 +300,5 @@ class MainWindow(QMainWindow):
         rel_time = timestamp - self.record_start_time
         self.recorded_messages.append((rel_time, message))
 
-        if len(self.recorded_messages) % 10 == 0:
-            print(f"Recorded {len(self.recorded_messages)} messages so far...")
+        #if len(self.recorded_messages) % 10 == 0:
+        #    print(f"Recorded {len(self.recorded_messages)} messages so far...")
