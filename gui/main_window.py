@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, Slot, QTimer
 from midi.midi_manager import MidiManager
 import time
 import mido
@@ -30,6 +30,9 @@ class MainWindow(QMainWindow):
         # The recorded message is a list of messages
         self.recorded_messages: list[tuple[float, mido.Message]] = []
         self.hit_count = 0
+
+        # Playback
+        self.playback_timers = []
 
         # Connect signal to slot for visual updates
         self.midi_hit.connect(self._on_midi_hit_visual)
@@ -210,11 +213,44 @@ class MainWindow(QMainWindow):
 
     def _on_play_clicked(self):
         print("Play clicked")
-        self.placeholder_label.setText("Play clicked\n(Placeholder: no audio yet)")
+
+        if not self.recorded_messages:
+            self.placeholder_label.setText("Nothing to play.")
+            return
+
+        if self.midi_manager.current_output is None:
+            self.placeholder_label.setText("No MIDI output selected.")
+            return
+
+        # Clear any leftover timers just in case
+        for timer in self.playback_timers:
+            timer.stop()
+            timer.deleteLater()
+        self.playback_timers.clear()
+
+        # Schedule each recorded message with real QTimers
+        for t, msg in self.recorded_messages:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda m=msg: self.midi_manager.send_message(m))
+            timer.start(int(t * 1000))
+
+            self.playback_timers.append(timer)
+
+        self.placeholder_label.setText("Playing back...")
+        print("Playback scheduled.")
 
     def _on_stop_clicked(self):
         print("Stop clicked")
-        self.placeholder_label.setText("Stop clicked\n(Placeholder: transport stopped)")
+        
+        # Stop all playback timers
+        for timer in self.playback_timers:
+            timer.stop()
+            timer.deleteLater()
+
+        self.playback_timers.clear()
+
+        self.placeholder_label.setText("Playback stopped.")
 
     def _on_record_toggled(self, checked: bool):
         if checked:
@@ -222,6 +258,7 @@ class MainWindow(QMainWindow):
             self.record_button.setText("Recording...")
 
             self.is_recording = True
+            self.hit_count = 0
             self.record_start_time = time.monotonic()
             self.recorded_messages.clear()
 

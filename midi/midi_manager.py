@@ -69,6 +69,13 @@ class MidiManager:
         self.current_output.send(msg_on)
         print("Sent test drum note (note 60).")
 
+    def send_message(self, msg: mido.Message):
+        if self.current_output is None:
+            print("No MIDI output selected / open")
+            return
+        
+        self.current_output.send(msg)
+
     # Input
 
     def list_input_ports(self):
