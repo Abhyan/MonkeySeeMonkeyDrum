@@ -18,6 +18,9 @@ class MidiManager:
         self.current_input_name = None
         self.current_input = None
 
+        # Input callback
+        self.input_callback = None
+
     # Output
 
     def list_output_ports(self):
@@ -77,7 +80,7 @@ class MidiManager:
             ports = []
         return ports
 
-    def select_input(self, name: str) -> bool:
+    def select_input(self, name: str, callback=None) -> bool:
         """Open the given MIDI input port by name, printing incoming messages."""
         # Close any existing port
         if self.current_input is not None:
@@ -87,9 +90,12 @@ class MidiManager:
                 pass
             self.current_input = None
             self.current_input_name = None
+            self.input_callback = None
 
         if not name:
             return False
+        
+        self.input_callback = callback
 
         try:
             # Use a callback that only prints
@@ -101,11 +107,19 @@ class MidiManager:
             print(f"Error opening MIDI input {name}: {e}")
             self.current_input = None
             self.current_input_name = None
+            self.input_callback = None
             return False
 
     def _handle_input_message(self, message: mido.Message):
         """This is called from a background thread by mido."""
-        print(f"MIDI IN [{self.current_input_name}]: {message}")
+        ts = time.time();
+        print(f"MIDI IN [{self.current_input_name}] @ {ts:.3f}: {message}")
+
+        if self.input_callback is not None:
+            try:
+                self.input_callback(message, ts)
+            except Exception as e:
+                print(f"Error in input_callback: {e}")
 
     # Cleanup
 

@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from midi.midi_manager import MidiManager
+import time
+import mido
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -20,6 +22,12 @@ class MainWindow(QMainWindow):
 
         # Backend objects
         self.midi_manager = MidiManager()
+
+        # Recording
+        self.is_recording = False
+        self.record_start_time: float | None = None
+        # The recorded message is a list of messages
+        self.recorded_messages: list[tuple[float, mido.Message]] = []
 
         # UI setup
         self._create_central_widget()
@@ -207,12 +215,26 @@ class MainWindow(QMainWindow):
         if checked:
             print("Record started")
             self.record_button.setText("Recording...")
-            self.placeholder_label.setText("Recording...\n(Placeholder: no MIDI yet)")
+
+            self.is_recording = True
+            self.record_start_time = time.time()
+            self.recorded_messages.clear()
+
+            self.placeholder_label.setText(
+                "Recording...\n"
+                "Incoming MIDI from the selected input will be stored."
+            )
         else:
             print("Record stopped")
             self.record_button.setText("Record")
+
+            self.is_recording = False
+
+            num = len(self.recorded_messages)
             self.placeholder_label.setText(
-                "Recording stopped\n(Timeline / Drum Grid will go here)"
+                f"Recording stopped.\nCaptured {num} MIDI messages."
+                if num > 0
+                else "Recording stopped.\n(No MIDI messages were captured.)"
             )
 
     def _on_output_changed(self, name: str):
@@ -231,11 +253,12 @@ class MainWindow(QMainWindow):
         if not name or name in ("Select MIDI Input", "No MIDI inputs"):
             return
 
-        ok = self.midi_manager.select_input(name)
+        ok = self.midi_manager.select_input(name, callback=self._on_midi_message)
         if ok:
             self.placeholder_label.setText(
                 f"Selected MIDI input:\n{name}\n"
-                "Incoming MIDI will be printed to the console."
+                "Incoming MIDI will be printed to the console and\n"
+                "recorded when 'Record' is enabled."
             )
         else:
             self.placeholder_label.setText(f"Failed to open MIDI input:\n{name}")
@@ -263,3 +286,16 @@ class MainWindow(QMainWindow):
         self.placeholder_label.setText(
             "Refreshed MIDI ports.\n"
         )
+
+    def _on_midi_message(self, message: mido.Message, timestamp: float):
+        # This is called from a background thread by mido via MidiManager.
+        print(f"[GUI] Received MIDI @ {timestamp:.3f}: {message}")
+
+        if not self.is_recording or self.record_start_time is None:
+            return
+
+        rel_time = timestamp - self.record_start_time
+        self.recorded_messages.append((rel_time, message))
+
+        if len(self.recorded_messages) % 10 == 0:
+            print(f"Recorded {len(self.recorded_messages)} messages so far...")
